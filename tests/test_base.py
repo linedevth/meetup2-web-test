@@ -26,7 +26,7 @@ class TestBase(unittest.TestCase):
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--window-size=1024x768')
-        self.driver = webdriver.Chrome()
+        self.driver = webdriver.Chrome(chrome_options=chrome_options)
         self.driver.maximize_window()
         self.driver.get('https://developers.line.me/en/')
 
