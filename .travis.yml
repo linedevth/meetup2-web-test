@@ -1,0 +1,16 @@
+dist: trusty
+sudo: required
+addons:
+  chrome: stable
+language: python
+python:
+  - "3.6"
+before_install:
+  - sudo apt-add-repository ppa:qameta/allure
+  - sudo apt-get update
+  - sudo apt-get install -y allure
+install:
+  - pip install -r requirements.txt
+
+script:
+  - pytest --alluredir=results/
