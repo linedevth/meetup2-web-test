@@ -17,18 +17,12 @@ import sys
 import allure
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from allure_commons.types import AttachmentType
-
 
 class TestBase(unittest.TestCase):
 
     def setUp(self):
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--window-size=1024x768')
-        # self.driver = webdriver.Chrome(chrome_options=chrome_options)
-
-        from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
         self.driver = webdriver.Remote(command_executor='http://127.0.0.1:4444/wd/hub', desired_capabilities=DesiredCapabilities.CHROME)
 
         self.driver.maximize_window()
