@@ -16,12 +16,16 @@ import unittest
 import sys
 import allure
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from allure_commons.types import AttachmentType
 
 
 class TestBase(unittest.TestCase):
 
     def setUp(self):
+        chrome_options = Options()
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--window-size=1024x768')
         self.driver = webdriver.Chrome()
         self.driver.maximize_window()
         self.driver.get('https://developers.line.me/en/')
