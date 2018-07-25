@@ -15,8 +15,8 @@ before_install:
   - sudo mv -f ~/chromedriver /usr/local/share/
   - sudo chmod +x /usr/local/share/chromedriver
   - sudo ln -s /usr/local/share/chromedriver /usr/local/bin/chromedriver
-  - docker pull elgalu/selenium
-  - docker pull dosel/zalenium
+  - docker pull elgalu/selenium:latest
+  - docker pull dosel/zalenium:latest
 install:
   - pip install -r requirements.txt
 
