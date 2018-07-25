@@ -1,0 +1,57 @@
+#!groovy
+
+import hudson.model.*
+import groovy.json.JsonOutput
+
+
+def waitForRemoteSeleniumReady() {
+    timeout(time: 60, unit: 'SECONDS') {
+        waitUntil {
+            try {
+                sh "curl http://localhost:4444/wd/hub/status | grep '\"ready\":true' &> /dev/null"
+                return true
+            } catch (exception) {
+                return false
+            }
+        }
+    }     
+}
+
+pipeline {
+    options {
+        buildDiscarder(logRotator(numToKeepStr:'5'))
+    }
+
+    agent {
+        label 'master'
+    }
+
+    stages {
+        stage('checkout') {
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], 
+                userRemoteConfigs: [[url: 'https://github.com/linedevth/meetup2-web-test.git']]])
+            }
+        }
+        stage('test') {
+            steps {
+                script {
+                    sh "docker build . -t webtest:latest"
+
+                    sh "docker network rm testing_network"
+                    sh "docker network create testing_network"
+
+                    sh "docker stop zalenium"
+                    sh "docker rm zalenium"
+                    sh "docker stop webtest"
+                    sh "docker rm webtest"
+
+                    sh "docker run -ti -d --network testing_network --name zalenium -p 4444:4444 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/videos:/home/seluser/videos --privileged dosel/zalenium start --desiredContainers 2 --maxTestSessions 10"
+                    waitForRemoteSeleniumReady()
+                    sh "docker run -ti --network testing_network --name webtest -v /tmp/videos/report:/report webtest:latest sh -c \"pytest /tests/test_sample.py --alluredir=/report\""
+                    
+                }
+            }
+        }
+    }
+}
