@@ -8,6 +8,7 @@ __pycache__/
 allure-report/
 # C extensions
 *.so
+/*.pyc/
 
 results/
 # Distribution / packaging

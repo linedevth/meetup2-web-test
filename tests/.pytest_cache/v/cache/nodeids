@@ -1,5 +1,0 @@
-[
-  "test_linedevdocs.py::LINEDevDocsTest::test_linedev_docs_contains_sdk_for_iOS",
-  "test_linedevdocs.py::LINEDevDocsTest::test_linedev_docs_page_contains_line_login",
-  "test_linedevdocs.py::LINEDevDocsTest::test_linedev_docs_page_title"
-]
