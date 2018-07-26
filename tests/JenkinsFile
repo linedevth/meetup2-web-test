@@ -8,7 +8,7 @@ def waitForRemoteSeleniumReady() {
     timeout(time: 60, unit: 'SECONDS') {
         waitUntil {
             try {
-                sh "curl http://localhost:4444/wd/hub/status | grep '\"ready\":true' &> /dev/null"
+                sh "curl http://localhost:4444/wd/hub/status | grep 'true' &> /dev/null"
                 return true
             } catch (exception) {
                 return false
@@ -16,6 +16,10 @@ def waitForRemoteSeleniumReady() {
         }
     }     
 }
+
+TEST_IMAGE_NAME = "webtest:latest"
+TEST_CONTAINER_NAME = "webtest"
+TEST_FILE = "/tests/test_sample.py"
 
 pipeline {
     options {
@@ -29,27 +33,51 @@ pipeline {
     stages {
         stage('checkout') {
             steps {
-                checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], 
+                checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], 
                 userRemoteConfigs: [[url: 'https://github.com/linedevth/meetup2-web-test.git']]])
             }
         }
         stage('test') {
             steps {
                 script {
-                    sh "docker build . -t webtest:latest"
+                    sh "docker build . -t ${TEST_IMAGE_NAME}"
 
-                    sh "docker network rm testing_network"
-                    sh "docker network create testing_network"
-
-                    sh "docker stop zalenium"
-                    sh "docker rm zalenium"
-                    sh "docker stop webtest"
-                    sh "docker rm webtest"
-
-                    sh "docker run -ti -d --network testing_network --name zalenium -p 4444:4444 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/videos:/home/seluser/videos --privileged dosel/zalenium start --desiredContainers 2 --maxTestSessions 10"
+                    sh """
+                        set +e
+                        docker network rm testing_network
+                        docker network create testing_network
+                        docker stop zalenium
+                        docker rm zalenium
+                        docker stop ${TEST_CONTAINER_NAME}
+                        docker rm ${TEST_CONTAINER_NAME}
+                        docker pull elgalu/selenium:latest
+                        docker pull dosel/zalenium:latest
+                        set -e
+                    """
+                    sh "docker run -ti -d --network testing_network --name zalenium -p 4444:4444 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/videos:/home/seluser/videos --privileged dosel/zalenium start --videoRecordingEnabled true --maxDockerSeleniumContainers 4 --desiredContainers 2 --maxTestSessions 10"
                     waitForRemoteSeleniumReady()
-                    sh "docker run -ti --network testing_network --name webtest -v /tmp/videos/report:/report webtest:latest sh -c \"pytest /tests/test_sample.py --alluredir=/report\""
-                    
+                    sh "docker run -t --network testing_network --name ${TEST_CONTAINER_NAME} -v $WORKSPACE/$BUILD_NUMBER/allure-results:/report -v $WORKSPACE/$BUILD_NUMBER/junit-report:/junit-report ${TEST_IMAGE_NAME} pytest ${TEST_FILE} --alluredir=/report --junitxml=/junit-report/report.xml"
+                    sh "rm -rf $WORKSPACE/allure-results-jenkins"
+                    sh "cp -r $WORKSPACE/$BUILD_NUMBER/allure-results $WORKSPACE/allure-results-jenkins"
+
+                    sh "rm -rf $WORKSPACE/junit-report-jenkins"
+                    sh "cp -r $WORKSPACE/$BUILD_NUMBER/junit-report $WORKSPACE/junit-report-jenkins"
+                }
+
+            }
+        }
+        stage('reports') {
+            steps {
+                script {
+                        junit "junit-report-jenkins/*.xml"
+
+                        allure([
+                                includeProperties: false,
+                                jdk: '',
+                                properties: [],
+                                reportBuildPolicy: 'ALWAYS',
+                                results: [[path: 'allure-results-jenkins']]
+                        ])
                 }
             }
         }
