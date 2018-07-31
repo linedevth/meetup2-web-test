@@ -22,9 +22,10 @@ for root, dirs, files in os.walk(args.files_path):
     for name in files:
         if name.endswith((".mp4")):
             file_path = root + name
-            test_name = name.split('.')[0].replace('zalenium_', '')
+            test_name = (name.split('.')[0]).replace('zalenium_', '')
             key_name = args.key_prefix + '/' + test_name + '.mp4'
             data = open(file_path, 'rb')
 
-            print('Uploading:' + name)
+            print('Uploading:' + test_name)
+
             result = s3.Bucket(BUCKET_NAME).put_object(Key=key_name, Body=data, ACL='public-read', ContentType='video/mp4')
