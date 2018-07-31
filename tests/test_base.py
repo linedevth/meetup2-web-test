@@ -29,6 +29,7 @@ class TestBase(unittest.TestCase):
 
         capabilities = DesiredCapabilities.CHROME.copy()
         capabilities['build'] = self.build_number
+        capabilities['name'] = self.id().split('.')[-1] + '.' + self.id().split('.')[-2]
         self.driver = webdriver.Remote(command_executor=self.remote_webdriver_url, desired_capabilities=capabilities)
 
         self.driver.maximize_window()
