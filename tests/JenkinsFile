@@ -54,7 +54,7 @@ pipeline {
                         docker pull dosel/zalenium:latest
                         set -e
                     """
-                    sh "docker run -ti -d --network testing_network --name zalenium -p 4444:4444 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/videos:/home/seluser/videos --privileged dosel/zalenium start --videoRecordingEnabled true --maxDockerSeleniumContainers 4 --desiredContainers 2 --maxTestSessions 10"
+                    sh "docker run -ti -d --network testing_network --name zalenium -p 4444:4444 -e BUILD_NUMBER=$BUILD_NUMBER -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/videos:/home/seluser/videos --privileged dosel/zalenium start --videoRecordingEnabled true --maxDockerSeleniumContainers 4 --desiredContainers 2 --maxTestSessions 10"
                     waitForRemoteSeleniumReady()
                     sh "docker run -t --network testing_network --name ${TEST_CONTAINER_NAME} -v $WORKSPACE/$BUILD_NUMBER/allure-results:/report -v $WORKSPACE/$BUILD_NUMBER/junit-report:/junit-report ${TEST_IMAGE_NAME} pytest ${TEST_FILE} --alluredir=/report --junitxml=/junit-report/report.xml"
                     sh "rm -rf $WORKSPACE/allure-results-jenkins"

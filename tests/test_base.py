@@ -25,7 +25,11 @@ class TestBase(unittest.TestCase):
 
     def setUp(self):
         self.remote_webdriver_url = os.getenv('REMOTE_WEBDRIVER_URL', 'http://localhost:4444/wd/hub')
-        self.driver = webdriver.Remote(command_executor=self.remote_webdriver_url, desired_capabilities=DesiredCapabilities.CHROME)
+        self.build_number = os.getenv('BUILD_NUMBER', None)
+
+        capabilities = DesiredCapabilities.CHROME.copy()
+        capabilities['build'] = self.build_number
+        self.driver = webdriver.Remote(command_executor=self.remote_webdriver_url, desired_capabilities=capabilities)
 
         self.driver.maximize_window()
         self.driver.get('https://developers.line.me/en/')
