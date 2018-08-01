@@ -48,4 +48,4 @@ class MeetUpTestDemo(TestBase):
         """
         main_page = MainPage(self.driver)
         blog_page = main_page.click_blog_link()
-        self.assertEqual(blog_page.get_title(), 'LINE Engineering Blog', msg='Title is not \'LINE Engineering Blog\'')
+        self.assertEqual(blog_page.get_title(), 'LINE Engineering Blogs', msg='Title is not \'LINE Engineering Blog\'')
