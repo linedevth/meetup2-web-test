@@ -1,6 +1,7 @@
 import boto3
 import os
 import argparse
+import re
 
 parser = argparse.ArgumentParser()
 parser.add_argument("access_key", help="AWS access key")
@@ -22,10 +23,10 @@ for root, dirs, files in os.walk(args.files_path):
     for name in files:
         if name.endswith((".mp4")):
             file_path = root + name
-            test_name = (name.split('.')[0]).replace('zalenium_', '')
+            m = re.search(r'(test_[a-z_]*)(_|\.)+[^A-Z]*', name)
+            test_name = m.group(1)
             key_name = args.key_prefix + '/' + test_name + '.mp4'
             data = open(file_path, 'rb')
-
-            print('Uploading:' + test_name)
+            print('Uploading:' + key_name)
 
             result = s3.Bucket(BUCKET_NAME).put_object(Key=key_name, Body=data, ACL='public-read', ContentType='video/mp4')

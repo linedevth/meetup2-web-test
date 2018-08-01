@@ -22,12 +22,12 @@ TEST_CONTAINER_NAME = "webtest"
 TEST_FILE = "/tests/test_sample.py"
 
 SELENIUM_IMAGE_NAME = "kamon70/selenium-yuv420p-baseline:latest"
-ZALENIUM_IMAGE_NAME = "dosel/zalenium:latest"
+ZALENIUM_IMAGE_NAME = "dosel/zalenium:3.13.0a"
 ZALENIUM_CONTAINER_NAME = "zalenium"
 
 DOCKER_NETWORK_NAME = "testing_network"
 
-VDO_PATH = "/tmp/videos/$BUILD_NUMBER/"
+VDO_PATH = "/tmp/videos"
 
 pipeline {
     options {
@@ -71,9 +71,9 @@ pipeline {
                     sh "rm -rf $WORKSPACE/junit-report-jenkins"
                     sh "cp -r $WORKSPACE/$BUILD_NUMBER/junit-report $WORKSPACE/junit-report-jenkins"
 
-                    sh "docker run --rm -t --name upload_vdo -v ${VDO_PATH}:/videos webtest:latest python upload_zalenium_vdo.py $S3_ACCESS_KEY $S3_SECRET_KEY $S3_BUCKET_NAME /videos/ $JOB_NAME/$BUILD_NUMBER"
+                    sh "sleep 10"
+                    sh "docker run --rm -t --name upload_vdo -v ${VDO_PATH}/$BUILD_NUMBER:/videos webtest:latest python upload_zalenium_vdo.py $S3_ACCESS_KEY $S3_SECRET_KEY $S3_BUCKET_NAME /videos/ $JOB_NAME/$BUILD_NUMBER"
                 }
-
             }
         }
         stage('reports') {
@@ -90,6 +90,12 @@ pipeline {
                         ])
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            build job: 'LINE-Notification', parameters: [string(name: 'JOB_URL', value: "${JOB_URL}"), string(name: 'BUILD_NO', value: "${BUILD_NUMBER}"), string(name: 'TO', value: 'U68ad73280d470269a289af7102112785')]
         }
     }
 }
