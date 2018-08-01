@@ -14,6 +14,7 @@
 
 import unittest
 import sys
+import os
 import allure
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -23,7 +24,13 @@ from allure_commons.types import AttachmentType
 class TestBase(unittest.TestCase):
 
     def setUp(self):
-        self.driver = webdriver.Remote(command_executor='http://127.0.0.1:4444/wd/hub', desired_capabilities=DesiredCapabilities.CHROME)
+        self.remote_webdriver_url = os.getenv('REMOTE_WEBDRIVER_URL', 'http://localhost:4444/wd/hub')
+        self.build_number = os.getenv('BUILD_NUMBER', None)
+
+        capabilities = DesiredCapabilities.CHROME.copy()
+        capabilities['build'] = self.build_number
+        capabilities['name'] = self.id().split('.')[-1] + '.' + self.id().split('.')[-2]
+        self.driver = webdriver.Remote(command_executor=self.remote_webdriver_url, desired_capabilities=capabilities)
 
         self.driver.maximize_window()
         self.driver.get('https://developers.line.me/en/')

@@ -1,0 +1,101 @@
+#!groovy
+
+import hudson.model.*
+import groovy.json.JsonOutput
+
+
+def waitForRemoteSeleniumReady() {
+    timeout(time: 60, unit: 'SECONDS') {
+        waitUntil {
+            try {
+                sh "curl http://localhost:4444/wd/hub/status | grep 'true' &> /dev/null"
+                return true
+            } catch (exception) {
+                return false
+            }
+        }
+    }     
+}
+
+TEST_IMAGE_NAME = "webtest:latest"
+TEST_CONTAINER_NAME = "webtest"
+TEST_FILE = "/tests/test_sample.py"
+
+SELENIUM_IMAGE_NAME = "kamon70/selenium-yuv420p-baseline:latest"
+ZALENIUM_IMAGE_NAME = "dosel/zalenium:3.13.0a"
+ZALENIUM_CONTAINER_NAME = "zalenium"
+
+DOCKER_NETWORK_NAME = "testing_network"
+
+VDO_PATH = "/tmp/videos"
+
+pipeline {
+    options {
+        buildDiscarder(logRotator(numToKeepStr:'5'))
+    }
+
+    agent {
+        label 'master'
+    }
+
+    stages {
+        stage('checkout') {
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], 
+                userRemoteConfigs: [[url: 'https://github.com/linedevth/meetup2-web-test.git']]])
+            }
+        }
+        stage('test') {
+            steps {
+                script {
+                    sh "docker build . -t ${TEST_IMAGE_NAME}"
+
+                    sh """
+                        set +e
+                        docker network rm ${DOCKER_NETWORK_NAME}
+                        docker network create ${DOCKER_NETWORK_NAME}
+                        docker stop ${ZALENIUM_CONTAINER_NAME}
+                        docker rm ${ZALENIUM_CONTAINER_NAME}
+                        docker stop ${TEST_CONTAINER_NAME}
+                        docker rm ${TEST_CONTAINER_NAME}
+                        docker pull ${ZALENIUM_IMAGE_NAME}
+                        docker pull ${SELENIUM_IMAGE_NAME}
+                        set -e
+                    """
+                    sh "docker run -ti -d --network ${DOCKER_NETWORK_NAME} --name zalenium -p 4444:4444 -v /var/run/docker.sock:/var/run/docker.sock -v ${VDO_PATH}:/home/seluser/videos --privileged ${ZALENIUM_IMAGE_NAME} start --videoRecordingEnabled true --seleniumImageName ${SELENIUM_IMAGE_NAME} --maxDockerSeleniumContainers 4 --desiredContainers 2 --maxTestSessions 10"
+                    waitForRemoteSeleniumReady()
+                    sh "docker run -t --network ${DOCKER_NETWORK_NAME} -e BUILD_NUMBER=$BUILD_NUMBER --name ${TEST_CONTAINER_NAME} -v $WORKSPACE/$BUILD_NUMBER/allure-results:/report -v $WORKSPACE/$BUILD_NUMBER/junit-report:/junit-report ${TEST_IMAGE_NAME} pytest ${TEST_FILE} --alluredir=/report --junitxml=/junit-report/report.xml"
+                    sh "rm -rf $WORKSPACE/allure-results-jenkins"
+                    sh "cp -r $WORKSPACE/$BUILD_NUMBER/allure-results $WORKSPACE/allure-results-jenkins"
+
+                    sh "rm -rf $WORKSPACE/junit-report-jenkins"
+                    sh "cp -r $WORKSPACE/$BUILD_NUMBER/junit-report $WORKSPACE/junit-report-jenkins"
+
+                    sh "sleep 10"
+                    sh "docker run --rm -t --name upload_vdo -v ${VDO_PATH}/$BUILD_NUMBER:/videos webtest:latest python upload_zalenium_vdo.py $S3_ACCESS_KEY $S3_SECRET_KEY $S3_BUCKET_NAME /videos/ $JOB_NAME/$BUILD_NUMBER"
+                }
+            }
+        }
+        stage('reports') {
+            steps {
+                script {
+                        junit "junit-report-jenkins/*.xml"
+
+                        allure([
+                                includeProperties: false,
+                                jdk: '',
+                                properties: [],
+                                reportBuildPolicy: 'ALWAYS',
+                                results: [[path: 'allure-results-jenkins']]
+                        ])
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            build job: 'LINE-Notification', parameters: [string(name: 'JOB_URL', value: "${JOB_URL}"), string(name: 'BUILD_NO', value: "${BUILD_NUMBER}"), string(name: 'TO', value: 'U68ad73280d470269a289af7102112785')]
+        }
+    }
+}

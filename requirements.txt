@@ -2,3 +2,4 @@ selenium==3.13.0
 pytest==3.6.3
 allure-pytest==2.5.0
 pytest-rerunfailures==4.1
+boto3==1.7.66
