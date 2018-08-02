@@ -21,7 +21,7 @@ TEST_IMAGE_NAME = "webtest:latest"
 TEST_CONTAINER_NAME = "webtest"
 TEST_FILE = "/tests/test_sample.py"
 
-SELENIUM_IMAGE_NAME = "kamon70/selenium-yuv420p-baseline:latest"
+SELENIUM_IMAGE_NAME = "elgalu/selenium:3.13.0-p3"
 ZALENIUM_IMAGE_NAME = "dosel/zalenium:3.13.0a"
 ZALENIUM_CONTAINER_NAME = "zalenium"
 
@@ -41,7 +41,7 @@ pipeline {
     stages {
         stage('checkout') {
             steps {
-                checkout([$class: 'GitSCM', branches: [[name: '*/jenkins']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], 
+                checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], 
                 userRemoteConfigs: [[url: 'https://github.com/linedevth/meetup2-web-test.git']]])
             }
         }
@@ -64,38 +64,41 @@ pipeline {
                     """
                     sh "docker run -ti -d --network ${DOCKER_NETWORK_NAME} --name zalenium -p 4444:4444 -v /var/run/docker.sock:/var/run/docker.sock -v ${VDO_PATH}:/home/seluser/videos --privileged ${ZALENIUM_IMAGE_NAME} start --videoRecordingEnabled true --seleniumImageName ${SELENIUM_IMAGE_NAME} --maxDockerSeleniumContainers 4 --desiredContainers 2 --maxTestSessions 10"
                     waitForRemoteSeleniumReady()
-                    sh "docker run -t --network ${DOCKER_NETWORK_NAME} -e BUILD_NUMBER=$BUILD_NUMBER --name ${TEST_CONTAINER_NAME} -v $WORKSPACE/$BUILD_NUMBER/allure-results:/report -v $WORKSPACE/$BUILD_NUMBER/junit-report:/junit-report ${TEST_IMAGE_NAME} pytest ${TEST_FILE} --alluredir=/report --junitxml=/junit-report/report.xml"
-                    sh "rm -rf $WORKSPACE/allure-results-jenkins"
-                    sh "cp -r $WORKSPACE/$BUILD_NUMBER/allure-results $WORKSPACE/allure-results-jenkins"
 
-                    sh "rm -rf $WORKSPACE/junit-report-jenkins"
-                    sh "cp -r $WORKSPACE/$BUILD_NUMBER/junit-report $WORKSPACE/junit-report-jenkins"
+                    sh """
+                        set +e
+                        docker run --rm -t --network ${DOCKER_NETWORK_NAME} -e BUILD_NUMBER=$BUILD_NUMBER --name ${TEST_CONTAINER_NAME} -v $WORKSPACE/$BUILD_NUMBER/allure-results:/report -v $WORKSPACE/$BUILD_NUMBER/junit-report:/junit-report ${TEST_IMAGE_NAME} pytest ${TEST_FILE} --alluredir=/report --junitxml=/junit-report/report.xml
+                        rm -rf $WORKSPACE/allure-results-jenkins
+                        cp -r $WORKSPACE/$BUILD_NUMBER/allure-results $WORKSPACE/allure-results-jenkins
+                        rm -rf $WORKSPACE/junit-report-jenkins
+                        cp -r $WORKSPACE/$BUILD_NUMBER/junit-report $WORKSPACE/junit-report-jenkins
+                        sleep 10
+                        
+                        mkdir -p $WORKSPACE/vdoOutput
+                        chmod +rw $WORKSPACE/vdoOutput
 
-                    sh "sleep 10"
-                    sh "docker run --rm -t --name upload_vdo -v ${VDO_PATH}/$BUILD_NUMBER:/videos webtest:latest python upload_zalenium_vdo.py $S3_ACCESS_KEY $S3_SECRET_KEY $S3_BUCKET_NAME /videos/ $JOB_NAME/$BUILD_NUMBER"
+                        convert_vdo "${VDO_PATH}/$BUILD_NUMBER/" "$WORKSPACE/vdoOutput"
+                        
+                        docker run --rm -t --name upload_vdo -v $WORKSPACE/vdoOutput:/videos webtest:latest python upload_zalenium_vdo.py $S3_ACCESS_KEY $S3_SECRET_KEY $S3_BUCKET_NAME /videos/ $JOB_NAME/$BUILD_NUMBER
+                        set -e
+                    """
                 }
-            }
-        }
-        stage('reports') {
-            steps {
-                script {
-                        junit "junit-report-jenkins/*.xml"
 
-                        allure([
-                                includeProperties: false,
-                                jdk: '',
-                                properties: [],
-                                reportBuildPolicy: 'ALWAYS',
-                                results: [[path: 'allure-results-jenkins']]
-                        ])
-                }
             }
         }
     }
 
     post {
         always {
-            build job: 'LINE-Notification', parameters: [string(name: 'JOB_URL', value: "${JOB_URL}"), string(name: 'BUILD_NO', value: "${BUILD_NUMBER}"), string(name: 'TO', value: 'U68ad73280d470269a289af7102112785')]
+            junit "${BUILD_NUMBER}/junit-report/report.xml"
+            allure([
+                    includeProperties: false,
+                    jdk: '',
+                    properties: [],
+                    reportBuildPolicy: 'ALWAYS',
+                    results: [[path: "allure-results-jenkins"]]
+            ])
+            build job: 'LINE-Notification', parameters: [string(name: 'JOB_URL', value: "${JOB_URL}"), string(name: 'BUILD_NO', value: "${BUILD_NUMBER}"), string(name: 'TO', value: "${USER_MID}")]
         }
     }
 }
