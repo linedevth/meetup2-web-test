@@ -24,4 +24,5 @@ sh$ docker run -ti -d --network testing_network --name zalenium \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v /tmp/videos:/home/seluser/videos --privileged \
     dosel/zalenium:3.13.0a start --debugEnabled true --videoRecordingEnabled true --maxDockerSeleniumContainers 4 --desiredContainers 2 --maxTestSessions 10
+sh$ docker run --rm -t --network testing_network --name webtest webtest:latest pytest tests/
 ```
