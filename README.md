@@ -15,5 +15,6 @@ sh$ pip install -r requirements.txt
 ```
 ### Run Test Locally
 ```
+sh$ export LOCAL_WEBDRIVER_ENABLE=true
 sh$ pytest tests
 ```
