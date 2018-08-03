@@ -34,7 +34,7 @@ class LINEDevDocsTest(TestBase):
         self.assertEqual(line_login_doc_page.get_title(), 'LINE Login', msg='Title is not \'LINE Login\'')
 
     @allure.description('LINE Documentation Page Should Contain Menu for LINE Login SDK for iOS App')
-    def test_linedev_docs_contains_sdk_for_iOS(self):
+    def test_linedev_docs_contains_sdk_for_ios(self):
         main_page = MainPage(self.driver)
         document_page = main_page.click_documents_button()
         self.assertTrue(document_page.should_contains_text('LINE SDK for iOS'))
