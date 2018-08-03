@@ -10,7 +10,7 @@ web ui automation test sample for linedevth meetup#2
 ### Setup Python Environment
 ```
 sh$ virtualenv -p python3 venv
-sh$ source venv/bin/active
+sh$ source venv/bin/activate
 sh$ pip install -r requirements.txt
 ```
 ### Run Test Locally
